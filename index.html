@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<meta name="description" content="Project 21 study tracker">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Project 21</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f3f4f6;color:#111827;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+header{background:#111827;color:#fff;padding:18px 16px;position:sticky;top:0;z-index:10}
+h1{margin:0;font-size:23px}header p{margin:4px 0 0;color:#cbd5e1;font-size:13px}
+nav{display:flex;background:#fff;border-bottom:1px solid #e5e7eb;position:sticky;top:71px;z-index:9}
+nav button{flex:1;border:0;background:#fff;padding:13px 5px;font-weight:700;color:#64748b}
+nav button.active{color:#111827;border-bottom:3px solid #111827}
+main{max-width:850px;margin:auto;padding:16px}.page{display:none}.page.active{display:block}
+.card{background:#fff;border-radius:15px;padding:16px;margin-bottom:14px;box-shadow:0 2px 8px #0000000b}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.stat{background:#f8fafc;border-radius:12px;padding:12px}
+.stat b{display:block;font-size:25px}.muted{color:#64748b;font-size:13px}
+.progress{height:9px;background:#e5e7eb;border-radius:99px;overflow:hidden;margin-top:7px}.bar{height:100%;background:#111827}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+input,select{width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;font-size:15px}
+button.action,button.secondary{border-radius:9px;padding:10px 13px;font-weight:700}
+button.action{border:0;background:#111827;color:#fff}.secondary{border:1px solid #cbd5e1;background:#fff;color:#111827}
+.item{padding:12px 0;border-bottom:1px solid #e5e7eb}.item:last-child{border-bottom:0}
+.formgrid{display:grid;grid-template-columns:1fr 110px;gap:9px}.empty{text-align:center;color:#64748b;padding:20px}
+.small{font-size:12px}
+@media(max-width:600px){.grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<header><h1>Project 21</h1><p>Study tracker</p></header>
+<nav>
+<button class="active" data-page="dashboard">Dashboard</button>
+<button data-page="subjects">Subjects</button>
+<button data-page="today">Today</button>
+</nav>
+<main>
+<section id="dashboard" class="page active">
+<div class="card"><h2>Overall Progress</h2><div class="grid">
+<div class="stat"><span class="muted">Total</span><b id="total">0</b><span class="muted">lectures</span></div>
+<div class="stat"><span class="muted">Done</span><b id="done">0</b><span class="muted">lectures</span></div>
+<div class="stat"><span class="muted">Left</span><b id="left">0</b><span class="muted">lectures</span></div>
+</div><div class="progress"><div class="bar" id="overallBar"></div></div><p class="muted" id="pct">0% completed</p></div>
+<div class="card"><h2>Subject Progress</h2><div id="dashSubjects"></div></div>
+</section>
+
+<section id="subjects" class="page">
+<div class="card"><h2>Lecture Targets</h2><p class="muted">Set the total number of lectures for each subject.</p><div id="subjectList"></div></div>
+</section>
+
+<section id="today" class="page">
+<div class="card"><h2>Add Today's Lecture</h2><div class="formgrid">
+<div><label class="small">Subject</label><select id="subjectSelect"></select></div>
+<div><label class="small">Minutes</label><input id="minutes" type="number" min="1" placeholder="60"></div>
+</div><br><button class="action" id="addLecture">Add Next Lecture</button>
+<p class="muted">Lecture number is generated from your completed count.</p></div>
+<div class="card"><h2>Today's Queue</h2><div id="queue"></div></div>
+</section>
+</main>
+
+<script>
+const SUBJECTS=["Maths","English","History","Geography","Politics","Economics","GK","Physics","Chemistry","Biology"];
+const KEY="project21_v2";
+let state;
+function fresh(){return {subjects:SUBJECTS.map((name,i)=>({id:i,name,total:0,done:0})),today:[]}}
+try{state=JSON.parse(localStorage.getItem(KEY))||fresh()}catch(e){state=fresh()}
+if(!state.subjects||state.subjects.length!==10)state=fresh();
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+function save(){localStorage.setItem(KEY,JSON.stringify(state));render()}
+function page(id){document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));$(id).classList.add("active");document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("active",x.dataset.page===id));render()}
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>page(b.dataset.page));
+
+function render(){
+ let total=0,done=0;
+ state.subjects.forEach(s=>{total+=s.total;done+=s.done});
+ let left=Math.max(0,total-done),p=total?Math.round(done/total*100):0;
+ $("total").textContent=total;$("done").textContent=done;$("left").textContent=left;$("overallBar").style.width=p+"%";$("pct").textContent=p+"% completed";
+ $("dashSubjects").innerHTML=state.subjects.map(s=>{let x=s.total?Math.round(s.done/s.total*100):0;return `<div class="item"><div class="row"><b>${esc(s.name)}</b><span class="muted">${s.done}/${s.total}</span></div><div class="progress"><div class="bar" style="width:${x}%"></div></div></div>`}).join("");
+ $("subjectList").innerHTML=state.subjects.map((s,i)=>`<div class="item"><div class="row"><div><b>${esc(s.name)}</b><div class="muted">${s.done} completed</div></div><input style="max-width:120px" type="number" min="${s.done}" value="${s.total}" data-total="${i}"></div></div>`).join("");
+ document.querySelectorAll("[data-total]").forEach(e=>e.onchange=()=>{let i=+e.dataset.total;s=state.subjects[i];s.total=Math.max(s.done,parseInt(e.value)||0);save()});
+ $("subjectSelect").innerHTML=state.subjects.map((s,i)=>`<option value="${i}">${esc(s.name)} — next #${s.done+1}</option>`).join("");
+ $("queue").innerHTML=state.today.length?state.today.map((x,i)=>`<div class="item"><div class="row"><div><b>${esc(x.subject)} — Lecture ${x.number}</b><div class="muted">${x.minutes?x.minutes+" min":"No duration set"}</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">${x.complete?`<button class="secondary" onclick="undo(${i})">Undo</button>`:`<button class="action" onclick="complete(${i})">Complete</button><button class="secondary" onclick="removeItem(${i})">Remove</button>`}</div></div></div>`).join(""):`<div class="empty">No lectures added for today.</div>`;
+}
+$("addLecture").onclick=()=>{
+ let i=+$("subjectSelect").value,s=state.subjects[i],n=s.done+1;
+ if(n>s.total){alert("Set the total lecture target first.");return}
+ if(state.today.some(x=>!x.complete&&x.subjectId===i&&x.number===n)){alert("That lecture is already in today's queue.");return}
+ state.today.push({subjectId:i,subject:s.name,number:n,minutes:parseInt($("minutes").value)||0,complete:false});
+ $("minutes").value="";save();
+};
+window.complete=i=>{let x=state.today[i],s=state.subjects[x.subjectId];if(x.number!==s.done+1){alert("Complete lectures in order.");return}s.done++;x.complete=true;save()};
+window.undo=i=>{let x=state.today[i],s=state.subjects[x.subjectId];if(s.done!==x.number){alert("Only the latest completed lecture can be undone.");return}s.done--;x.complete=false;save()};
+window.removeItem=i=>{state.today.splice(i,1);save()};
+if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
+render();
+</script>
+</body>
+</html>
